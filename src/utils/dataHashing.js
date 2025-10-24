@@ -1,9 +1,11 @@
 const { ethers } = require("ethers");
 const crypto = require("crypto");
+const keccak = require("keccak");
 
 /**
  * Hash a preregistered username with clown numbers
  * This replicates the functionality from the original EVVM project
+ * Uses Keccak-256 for consistency with EVVM standards
  */
 const hashPreregisteredUsername = (username) => {
   if (!username || typeof username !== "string") {
@@ -13,8 +15,8 @@ const hashPreregisteredUsername = (username) => {
   // Remove any whitespace and convert to lowercase
   const cleanUsername = username.trim().toLowerCase();
 
-  // Create a hash using SHA-256
-  const hash = crypto.createHash("sha256").update(cleanUsername).digest("hex");
+  // Create a hash using Keccak-256 (same as Ethereum)
+  const hash = keccak("keccak256").update(cleanUsername).digest("hex");
 
   // Convert to BigInt for EVM compatibility
   const hashBigInt = BigInt("0x" + hash);
@@ -24,6 +26,7 @@ const hashPreregisteredUsername = (username) => {
 
 /**
  * Hash disperse payment users data
+ * Uses Keccak-256 for consistency with EVVM standards
  */
 const hashDispersePaymentUsersToPay = (recipients) => {
   if (!Array.isArray(recipients) || recipients.length === 0) {
@@ -47,11 +50,8 @@ const hashDispersePaymentUsersToPay = (recipients) => {
     })
     .join("|");
 
-  // Hash the string
-  const hash = crypto
-    .createHash("sha256")
-    .update(recipientsString)
-    .digest("hex");
+  // Hash the string using Keccak-256
+  const hash = keccak("keccak256").update(recipientsString).digest("hex");
 
   // Convert to BigInt for EVM compatibility
   const hashBigInt = BigInt("0x" + hash);
@@ -67,6 +67,21 @@ const generateRandomNonce = () => {
   // Use crypto.randomBytes for secure random number generation
   const randomBytes = crypto.randomBytes(8);
   const nonce = BigInt("0x" + randomBytes.toString("hex"));
+
+  return nonce;
+};
+
+/**
+ * Generate a random nonce using Mersenne Twister algorithm (alternative implementation)
+ * This matches the frontend implementation exactly
+ */
+const generateMersenneTwisterNonce = () => {
+  const MersenneTwister = require("mersenne-twister");
+  const mt = new MersenneTwister();
+
+  // Generate a random number and convert to BigInt
+  const randomNumber = mt.random();
+  const nonce = BigInt(Math.floor(randomNumber * Number.MAX_SAFE_INTEGER));
 
   return nonce;
 };
@@ -169,6 +184,7 @@ module.exports = {
   hashPreregisteredUsername,
   hashDispersePaymentUsersToPay,
   generateRandomNonce,
+  generateMersenneTwisterNonce,
   generateMultipleNonces,
   isValidAddress,
   isValidUsername,

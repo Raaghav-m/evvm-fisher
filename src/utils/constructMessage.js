@@ -1,8 +1,12 @@
 const { ethers } = require("ethers");
-const { hashPreregisteredUsername } = require("./dataHashing");
+const {
+  hashPreregisteredUsername,
+  generateMersenneTwisterNonce,
+} = require("./dataHashing");
 
 /**
  * Build message for single payment signature
+ * Matches the frontend implementation exactly
  */
 const buildMessageSignedForPay = (params) => {
   const {
@@ -27,11 +31,28 @@ const buildMessageSignedForPay = (params) => {
     throw new Error("Missing required parameters for payment signature");
   }
 
-  // Build the message structure
+  // Handle username vs address recipient
+  let recipientData;
+  if (recipient.startsWith("0x") && recipient.length === 42) {
+    // It's an address
+    recipientData = {
+      address: recipient,
+      username: null,
+    };
+  } else {
+    // It's a username - hash it
+    const hashedUsername = hashPreregisteredUsername(recipient);
+    recipientData = {
+      address: null,
+      username: hashedUsername.toString(),
+    };
+  }
+
+  // Build the message structure matching frontend
   const message = {
     type: "payment",
     network,
-    recipient,
+    recipient: recipientData.address || recipientData.username,
     tokenAddress,
     amount: ethers.parseEther(amount.toString()),
     nonce: BigInt(nonce),
@@ -45,6 +66,7 @@ const buildMessageSignedForPay = (params) => {
 
 /**
  * Build message for disperse payment signature
+ * Matches the frontend implementation exactly
  */
 const buildMessageSignedForDispersePay = (params) => {
   const {
@@ -81,11 +103,24 @@ const buildMessageSignedForDispersePay = (params) => {
     }
   });
 
-  // Build the message structure
+  // Process recipients - hash usernames if needed
+  const processedRecipients = recipients.map((recipient) => {
+    let processedRecipient = { ...recipient };
+
+    if (recipient.username && !recipient.address) {
+      // Hash the username
+      const hashedUsername = hashPreregisteredUsername(recipient.username);
+      processedRecipient.username = hashedUsername.toString();
+    }
+
+    return processedRecipient;
+  });
+
+  // Build the message structure matching frontend
   const message = {
     type: "disperse_payment",
     network,
-    recipients: recipients.map((recipient) => ({
+    recipients: processedRecipients.map((recipient) => ({
       address: recipient.address || null,
       username: recipient.username || null,
       amount: ethers.parseEther(recipient.amount.toString()),
@@ -104,6 +139,7 @@ const buildMessageSignedForDispersePay = (params) => {
 
 /**
  * Build message for presale staking signature
+ * Matches the frontend implementation exactly
  */
 const buildMessageSignedForPresaleStaking = (params) => {
   const {
@@ -136,7 +172,7 @@ const buildMessageSignedForPresaleStaking = (params) => {
     throw new Error('Action must be either "stake" or "unstake"');
   }
 
-  // Build the message structure
+  // Build the message structure matching frontend
   const message = {
     type: "presale_staking",
     network,
@@ -155,6 +191,7 @@ const buildMessageSignedForPresaleStaking = (params) => {
 
 /**
  * Build message for public staking signature
+ * Matches the frontend implementation exactly
  */
 const buildMessageSignedForPublicStaking = (params) => {
   const {
@@ -183,7 +220,7 @@ const buildMessageSignedForPublicStaking = (params) => {
     throw new Error('Action must be either "stake" or "unstake"');
   }
 
-  // Build the message structure
+  // Build the message structure matching frontend
   const message = {
     type: "public_staking",
     network,
@@ -201,15 +238,10 @@ const buildMessageSignedForPublicStaking = (params) => {
 
 /**
  * Create a typed data structure for EIP-712 signing
+ * Matches the frontend implementation exactly
  */
 const createTypedData = (message, domain) => {
   const types = {
-    EIP712Domain: [
-      { name: "name", type: "string" },
-      { name: "version", type: "string" },
-      { name: "chainId", type: "uint256" },
-      { name: "verifyingContract", type: "address" },
-    ],
     Message: [],
   };
 
@@ -269,10 +301,33 @@ const createTypedData = (message, domain) => {
   }
 
   return {
-    domain,
+    domain: {
+      name: domain.name,
+      version: domain.version,
+      chainId: domain.chainId,
+      verifyingContract: domain.verifyingContract,
+    },
     types,
     primaryType: "Message",
     message,
+  };
+};
+
+/**
+ * Generate random nonce using Mersenne Twister
+ * Matches frontend implementation
+ */
+const generateRandomNonce = () => {
+  return generateMersenneTwisterNonce();
+};
+
+/**
+ * Generate multiple nonces for presale staking
+ */
+const generateDualNonces = () => {
+  return {
+    evvmNonce: generateMersenneTwisterNonce(),
+    stakingNonce: generateMersenneTwisterNonce(),
   };
 };
 
@@ -282,4 +337,6 @@ module.exports = {
   buildMessageSignedForPresaleStaking,
   buildMessageSignedForPublicStaking,
   createTypedData,
+  generateRandomNonce,
+  generateDualNonces,
 };

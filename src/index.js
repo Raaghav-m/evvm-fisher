@@ -18,12 +18,38 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize Telegram Bot
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
-  polling: !process.env.WEBHOOK_URL,
-});
+const bot = new TelegramBot(
+  process.env.TELEGRAM_BOT_TOKEN ||
+    "8375332170:AAGfFHJBphJA-wsSf9azpkoFSPos7hqXZ28",
+  {
+    polling: {
+      interval: 300,
+      autoStart: !process.env.WEBHOOK_URL,
+      params: {
+        timeout: 10
+      }
+    },
+    request: {
+      agentOptions: {
+        keepAlive: true,
+        family: 4
+      }
+    }
+  }
+);
 
 // Setup bot handlers
 setupBotHandlers(bot);
+
+// Add error handling for polling
+bot.on('polling_error', (error) => {
+  logger.error('Polling error:', error);
+  // Don't exit on polling errors, just log them
+});
+
+bot.on('error', (error) => {
+  logger.error('Bot error:', error);
+});
 
 // Setup webhook if configured
 if (process.env.WEBHOOK_URL) {

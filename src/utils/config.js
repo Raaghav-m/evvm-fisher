@@ -1,18 +1,18 @@
 const logger = require("./logger");
 
 const validateConfig = () => {
-  const requiredEnvVars = ["TELEGRAM_BOT_TOKEN"];
+  // const requiredEnvVars = ["TELEGRAM_BOT_TOKEN"];
 
-  const missingVars = requiredEnvVars.filter(
-    (varName) => !process.env[varName]
-  );
+  // const missingVars = requiredEnvVars.filter(
+  //   (varName) => !process.env[varName]
+  // );
 
-  if (missingVars.length > 0) {
-    logger.error(
-      `Missing required environment variables: ${missingVars.join(", ")}`
-    );
-    process.exit(1);
-  }
+  // if (missingVars.length > 0) {
+  //   logger.error(
+  //     `Missing required environment variables: ${missingVars.join(", ")}`
+  //   );
+  //   process.exit(1);
+  // }
 
   // Set defaults
   process.env.DEFAULT_NETWORK = process.env.DEFAULT_NETWORK || "ethereum";
@@ -32,8 +32,12 @@ const getSupportedNetworks = () => {
 
 const getRpcUrl = (network) => {
   const networkMap = {
-    ethereum: process.env.EVM_RPC_URL,
-    arbitrum: process.env.ARBITRUM_RPC_URL,
+    ethereum:
+      process.env.EVM_RPC_URL ||
+      "https://eth-sepolia.g.alchemy.com/v2/bCL-PmfJFUH8F65xv9be4",
+    arbitrum:
+      process.env.ARBITRUM_RPC_URL ||
+      "https://arb-sepolia.g.alchemy.com/v2/bCL-PmfJFUH8F65xv9be4",
   };
 
   return networkMap[network] || networkMap.ethereum;

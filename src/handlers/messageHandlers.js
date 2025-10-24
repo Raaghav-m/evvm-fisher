@@ -65,6 +65,10 @@ const handleOperationMessage = async (
   const operationData = userSession.operationData;
 
   switch (operation) {
+    case "setup_contract":
+      await handleContractSetup(bot, chatId, userId, text);
+      break;
+
     case "connect_wallet":
       await handleWalletConnection(bot, chatId, userId, text);
       break;
@@ -121,9 +125,60 @@ const handleOperationMessage = async (
   }
 };
 
+const handleContractSetup = async (bot, chatId, userId, text) => {
+  try {
+    const { isValidAddress } = require("../utils/validation");
+    const { updateUserSession } = require("../utils/sessionUtils");
+
+    const contractAddress = text.trim();
+
+    if (!isValidAddress(contractAddress)) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Invalid Contract Address*\n\n" +
+          "Please enter a valid Ethereum contract address (42 characters starting with 0x).",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createCancelMenu().reply_markup,
+        }
+      );
+      return;
+    }
+
+    // Save contract address to user session
+    updateUserSession(userId, { evvmContractAddress: contractAddress });
+    clearCurrentOperation(userId);
+
+    await bot.sendMessage(
+      chatId,
+      `✅ *EVVM Contract Address Set*\n\n` +
+        `Contract: \`${contractAddress}\`\n\n` +
+        `You can now use the bot to create signatures!`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+
+    logger.info(`User ${userId} set EVVM contract: ${contractAddress}`);
+  } catch (error) {
+    logger.error("Error setting contract address:", error);
+    await bot.sendMessage(
+      chatId,
+      "❌ *Error Setting Contract*\n\n" +
+        "There was an error setting the contract address. Please try again.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createCancelMenu().reply_markup,
+      }
+    );
+  }
+};
+
 const handleWalletConnection = async (bot, chatId, userId, text) => {
   try {
-    const { isValidPrivateKey, createWallet } = require("../utils/walletUtils");
+    const { createWallet } = require("../utils/walletUtils");
+    const { isValidPrivateKey } = require("../utils/validation");
     const { setWallet } = require("../utils/sessionUtils");
 
     // Validate private key
@@ -147,8 +202,12 @@ const handleWalletConnection = async (bot, chatId, userId, text) => {
       address: wallet.address,
     };
 
-    // Set wallet in session
-    setWallet(userId, walletData);
+    // Set wallet in session with private key
+    const { setWalletWithPrivateKey } = require("../utils/sessionUtils");
+    setWalletWithPrivateKey(userId, {
+      address: wallet.address,
+      privateKey: text, // Store private key temporarily for signing
+    });
     clearCurrentOperation(userId);
 
     await bot.sendMessage(
@@ -188,6 +247,14 @@ const handleSinglePaymentMessage = async (
   const step = operationData.step;
 
   switch (step) {
+    case "recipient_type":
+      // This step is handled by callback, not message
+      await bot.sendMessage(
+        chatId,
+        "Please use the buttons to select recipient type."
+      );
+      break;
+
     case "recipient":
       await handleSinglePaymentRecipient(
         bot,
@@ -400,7 +467,7 @@ const handleSinglePaymentPriorityFee = async (
   operationData.step = "nonce";
   updateOperationData(userId, operationData);
 
-  const { generateRandomNonce } = require("../utils/dataHashing");
+  const { generateRandomNonce } = require("../utils/constructMessage");
   const randomNonce = generateRandomNonce();
 
   await bot.sendMessage(
@@ -429,7 +496,7 @@ const handleSinglePaymentNonce = async (
     operationData.nonce = BigInt(nonce);
   } else {
     // Use the previously generated nonce
-    const { generateRandomNonce } = require("../utils/dataHashing");
+    const { generateRandomNonce } = require("../utils/constructMessage");
     operationData.nonce = generateRandomNonce();
   }
 

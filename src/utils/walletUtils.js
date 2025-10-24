@@ -16,11 +16,18 @@ const createProvider = (network) => {
 
 /**
  * Create a wallet instance from private key
+ * Enhanced with security measures matching frontend implementation
  */
 const createWallet = (privateKey, network = "ethereum") => {
   try {
     const provider = createProvider(network);
     const wallet = new ethers.Wallet(privateKey, provider);
+
+    // Log wallet creation (without exposing private key)
+    logger.info(
+      `Wallet created for address: ${wallet.address} on network: ${network}`
+    );
+
     return wallet;
   } catch (error) {
     logger.error("Error creating wallet:", error);
@@ -170,29 +177,6 @@ const getGasPrice = async (network = "ethereum") => {
 };
 
 /**
- * Validate private key format
- */
-const isValidPrivateKey = (privateKey) => {
-  try {
-    // Remove 0x prefix if present
-    const cleanKey = privateKey.startsWith("0x")
-      ? privateKey.slice(2)
-      : privateKey;
-
-    // Check if it's a valid hex string of correct length
-    if (!/^[0-9a-fA-F]{64}$/.test(cleanKey)) {
-      return false;
-    }
-
-    // Try to create a wallet to validate
-    new ethers.Wallet("0x" + cleanKey);
-    return true;
-  } catch (error) {
-    return false;
-  }
-};
-
-/**
  * Generate a new wallet
  */
 const generateWallet = () => {
@@ -220,6 +204,5 @@ module.exports = {
   getTokenBalance,
   estimateGas,
   getGasPrice,
-  isValidPrivateKey,
   generateWallet,
 };

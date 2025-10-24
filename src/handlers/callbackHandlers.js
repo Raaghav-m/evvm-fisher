@@ -138,6 +138,31 @@ const setupCallbackHandlers = (bot) => {
           await handleRecipientCountSelection(bot, chatId, userId, count);
           break;
 
+        // Signature confirmation callbacks
+        case "confirm_single_payment":
+          await handleConfirmSinglePayment(bot, chatId, userId);
+          break;
+
+        case "confirm_disperse_payment":
+          await handleConfirmDispersePayment(bot, chatId, userId);
+          break;
+
+        case "confirm_staking":
+          await handleConfirmStaking(bot, chatId, userId);
+          break;
+
+        case "confirm_presale_staking":
+          await handleConfirmPresaleStaking(bot, chatId, userId);
+          break;
+
+        case "confirm_new_wallet":
+          await handleConfirmNewWallet(bot, chatId, userId);
+          break;
+
+        case "cancel_operation":
+          await handleCancelOperation(bot, chatId, userId);
+          break;
+
         default:
           // Handle operation-specific callbacks
           await handleOperationCallbacks(bot, chatId, userId, data);
@@ -489,6 +514,7 @@ const handleRecipientTypeSelection = async (bot, chatId, userId, type) => {
   const operationData = userSession.operationData;
 
   operationData.recipientType = type;
+  operationData.step = "recipient"; // Set the next step
   updateOperationData(userId, operationData);
 
   if (type === "username") {
@@ -535,6 +561,86 @@ const handleRecipientCountSelection = async (bot, chatId, userId, count) => {
     {
       parse_mode: "Markdown",
       reply_markup: createRecipientTypeMenu().reply_markup,
+    }
+  );
+};
+
+// Signature confirmation handlers
+const handleConfirmSinglePayment = async (bot, chatId, userId) => {
+  try {
+    const { setupPaymentHandlers } = require("./operationHandlers");
+    await setupPaymentHandlers.signSinglePayment(bot, chatId, userId);
+  } catch (error) {
+    logger.error("Error confirming single payment:", error);
+    await bot.sendMessage(
+      chatId,
+      "❌ Error processing payment. Please try again."
+    );
+  }
+};
+
+const handleConfirmDispersePayment = async (bot, chatId, userId) => {
+  try {
+    const { setupPaymentHandlers } = require("./operationHandlers");
+    await setupPaymentHandlers.signDispersePayment(bot, chatId, userId);
+  } catch (error) {
+    logger.error("Error confirming disperse payment:", error);
+    await bot.sendMessage(
+      chatId,
+      "❌ Error processing payment. Please try again."
+    );
+  }
+};
+
+const handleConfirmStaking = async (bot, chatId, userId) => {
+  try {
+    const { setupStakingHandlers } = require("./operationHandlers");
+    await setupStakingHandlers.signStaking(bot, chatId, userId);
+  } catch (error) {
+    logger.error("Error confirming staking:", error);
+    await bot.sendMessage(
+      chatId,
+      "❌ Error processing staking. Please try again."
+    );
+  }
+};
+
+const handleConfirmPresaleStaking = async (bot, chatId, userId) => {
+  try {
+    const { setupStakingHandlers } = require("./operationHandlers");
+    await setupStakingHandlers.signPresaleStaking(bot, chatId, userId);
+  } catch (error) {
+    logger.error("Error confirming presale staking:", error);
+    await bot.sendMessage(
+      chatId,
+      "❌ Error processing presale staking. Please try again."
+    );
+  }
+};
+
+const handleConfirmNewWallet = async (bot, chatId, userId) => {
+  await bot.sendMessage(
+    chatId,
+    `🔗 *Connect New Wallet*\n\n` +
+      `Please send your new private key (starting with 0x):`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createCancelMenu().reply_markup,
+    }
+  );
+
+  setCurrentOperation(userId, "connect_wallet");
+};
+
+const handleCancelOperation = async (bot, chatId, userId) => {
+  const { clearCurrentOperation } = require("../utils/sessionUtils");
+  clearCurrentOperation(userId);
+
+  await bot.sendMessage(
+    chatId,
+    "❌ Operation cancelled. Returning to main menu.",
+    {
+      reply_markup: createMainMenu().reply_markup,
     }
   );
 };

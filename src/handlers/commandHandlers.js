@@ -1,6 +1,10 @@
 const logger = require("../utils/logger");
-const { createMainMenu } = require("../utils/menuUtils");
-const { getUserSession, createUserSession } = require("../utils/sessionUtils");
+const { createMainMenu, createCancelMenu } = require("../utils/menuUtils");
+const {
+  getUserSession,
+  createUserSession,
+  setCurrentOperation,
+} = require("../utils/sessionUtils");
 
 const setupCommandHandlers = (bot) => {
   // Start command
@@ -13,6 +17,24 @@ const setupCommandHandlers = (bot) => {
       let userSession = getUserSession(userId);
       if (!userSession) {
         userSession = createUserSession(userId);
+      }
+
+      // Check if EVVM contract address is configured
+      if (!userSession.evvmContractAddress) {
+        await bot.sendMessage(
+          chatId,
+          `🔧 *EVVM Contract Setup Required*\n\n` +
+            `Before using the bot, please provide the EVVM contract address.\n\n` +
+            `This address is used for all signature operations.\n\n` +
+            `Please enter the EVVM contract address:`,
+          {
+            parse_mode: "Markdown",
+            reply_markup: createCancelMenu().reply_markup,
+          }
+        );
+
+        setCurrentOperation(userId, "setup_contract");
+        return;
       }
 
       const welcomeMessage = `

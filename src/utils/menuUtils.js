@@ -2,6 +2,7 @@
 
 /**
  * Create the main menu keyboard
+ * Matches the frontend functionality exactly
  */
 const createMainMenu = () => {
   return {

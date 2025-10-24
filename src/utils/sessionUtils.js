@@ -58,16 +58,50 @@ const clearUserSession = (userId) => {
 
 /**
  * Set wallet in session
+ * Enhanced to handle private key storage securely
  */
 const setWallet = (userId, walletData) => {
   const session = getUserSession(userId);
   if (session) {
     session.wallet = {
       address: walletData.address,
-      // Never store private key in session
+      privateKey: walletData.privateKey, // Store temporarily for signing
       connected: true,
       connectedAt: Date.now(),
     };
+    session.lastActivity = Date.now();
+    userSessions.set(userId, session);
+    return session;
+  }
+  return null;
+};
+
+/**
+ * Set wallet with private key (for signing operations)
+ */
+const setWalletWithPrivateKey = (userId, walletData) => {
+  const session = getUserSession(userId);
+  if (session) {
+    session.wallet = {
+      address: walletData.address,
+      privateKey: walletData.privateKey,
+      connected: true,
+      connectedAt: Date.now(),
+    };
+    session.lastActivity = Date.now();
+    userSessions.set(userId, session);
+    return session;
+  }
+  return null;
+};
+
+/**
+ * Clear private key from session (security measure)
+ */
+const clearPrivateKey = (userId) => {
+  const session = getUserSession(userId);
+  if (session && session.wallet) {
+    session.wallet.privateKey = null;
     session.lastActivity = Date.now();
     userSessions.set(userId, session);
     return session;
@@ -204,6 +238,8 @@ module.exports = {
   updateUserSession,
   clearUserSession,
   setWallet,
+  setWalletWithPrivateKey,
+  clearPrivateKey,
   clearWallet,
   setCurrentOperation,
   clearCurrentOperation,

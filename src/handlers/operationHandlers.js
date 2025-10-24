@@ -15,9 +15,18 @@ const {
   buildMessageSignedForPresaleStaking,
   buildMessageSignedForPublicStaking,
   createTypedData,
-} = require("../utils/messageConstruction");
+  generateRandomNonce,
+  generateDualNonces,
+} = require("../utils/constructMessage");
 const { createWallet, signTypedData } = require("../utils/walletUtils");
-const { generateRandomNonce } = require("../utils/dataHashing");
+const {
+  generatePaymentSignature,
+  generateDispersePaymentSignature,
+  generatePublicStakingSignature,
+  generatePresaleStakingSignature,
+  generateDualPresaleStakingSignatures,
+  createSignatureSummary,
+} = require("../utils/signatureUtils");
 
 // Payment Handlers
 const setupPaymentHandlers = {
@@ -40,28 +49,7 @@ const setupPaymentHandlers = {
       const userSession = getUserSession(userId);
       const operationData = userSession.operationData;
 
-      // Build the message
-      const message = buildMessageSignedForPay({
-        recipient: operationData.recipient,
-        tokenAddress: operationData.tokenAddress,
-        amount: operationData.amount,
-        nonce: operationData.nonce,
-        priorityFee: operationData.priorityFee,
-        priority: operationData.priority,
-        network: userSession.network,
-      });
-
-      // Create typed data for signing
-      const domain = {
-        name: "EVVM Signature Constructor",
-        version: "1",
-        chainId: userSession.network === "ethereum" ? 1 : 42161, // Ethereum or Arbitrum
-        verifyingContract: "0x0000000000000000000000000000000000000000", // Placeholder
-      };
-
-      const typedData = createTypedData(message, domain);
-
-      // Show confirmation
+      // Show confirmation first
       const confirmationMessage =
         `📝 *Single Payment Signature Ready*\n\n` +
         `Recipient: ${operationData.recipient}\n` +
@@ -91,6 +79,75 @@ const setupPaymentHandlers = {
     }
   },
 
+  async signSinglePayment(bot, chatId, userId) {
+    try {
+      const userSession = getUserSession(userId);
+      const operationData = userSession.operationData;
+
+      if (!userSession.wallet || !userSession.wallet.privateKey) {
+        await bot.sendMessage(
+          chatId,
+          "❌ No wallet connected or private key not available. Please connect your wallet first.",
+          { reply_markup: createMainMenu().reply_markup }
+        );
+        return;
+      }
+
+      // Generate signature using the new signature utilities
+      const signatureData = await generatePaymentSignature(
+        userSession.wallet.privateKey,
+        {
+          recipient: operationData.recipient,
+          tokenAddress: operationData.tokenAddress,
+          amount: operationData.amount,
+          nonce: operationData.nonce,
+          priorityFee: operationData.priorityFee,
+          priority: operationData.priority,
+          evvmContractAddress: userSession.evvmContractAddress,
+        },
+        userSession.network
+      );
+
+      const summary = createSignatureSummary(signatureData, "single_payment");
+
+      // Display the signature
+      const signatureMessage =
+        `✅ <b>Single Payment Signature Generated</b>\n\n` +
+        `Wallet: <code>${summary.walletAddress}</code>\n` +
+        `Type: ${summary.type}\n\n` +
+        `<b>Signature Details:</b>\n` +
+        `R: <code>${summary.signature.r}</code>\n` +
+        `S: <code>${summary.signature.s}</code>\n` +
+        `V: <code>${summary.signature.v}</code>\n\n` +
+        `<b>Full Signature:</b>\n` +
+        `<code>${summary.signature.full}</code>\n\n` +
+        `<b>Message Hash:</b>\n` +
+        `<pre>${JSON.stringify(
+          summary.message,
+          (key, value) =>
+            typeof value === "bigint" ? value.toString() : value,
+          2
+        )}</pre>\n\n` +
+        `Signature generated at: ${summary.timestamp}`;
+
+      await bot.sendMessage(chatId, signatureMessage, {
+        parse_mode: "HTML",
+        reply_markup: createMainMenu().reply_markup,
+      });
+
+      clearCurrentOperation(userId);
+      logger.info(`Single payment signature generated for user ${userId}`);
+    } catch (error) {
+      logger.error("Error signing single payment:", error);
+      await bot.sendMessage(
+        chatId,
+        "❌ Error generating signature. Please try again.",
+        { reply_markup: createMainMenu().reply_markup }
+      );
+      clearCurrentOperation(userId);
+    }
+  },
+
   async createDispersePaymentSignature(bot, chatId, userId) {
     try {
       const userSession = getUserSession(userId);
@@ -112,7 +169,7 @@ const setupPaymentHandlers = {
       const domain = {
         name: "EVVM Signature Constructor",
         version: "1",
-        chainId: userSession.network === "ethereum" ? 1 : 42161,
+        chainId: userSession.network === "ethereum" ? 11155111 : 421614, // Sepolia testnets
         verifyingContract: "0x0000000000000000000000000000000000000000",
       };
 
@@ -213,7 +270,7 @@ const setupStakingHandlers = {
       const domain = {
         name: "EVVM Signature Constructor",
         version: "1",
-        chainId: userSession.network === "ethereum" ? 1 : 42161,
+        chainId: userSession.network === "ethereum" ? 11155111 : 421614, // Sepolia testnets
         verifyingContract: "0x0000000000000000000000000000000000000000",
       };
 
