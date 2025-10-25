@@ -11,7 +11,7 @@ const createUserSession = (userId) => {
   const session = {
     userId,
     wallet: null,
-    network: "ethereum",
+    network: "sepolia",
     currentOperation: null,
     operationData: {},
     createdAt: Date.now(),

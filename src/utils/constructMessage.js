@@ -10,56 +10,42 @@ const {
  */
 const buildMessageSignedForPay = (params) => {
   const {
-    recipient,
-    tokenAddress,
+    from,
+    to_address,
+    to_identity,
+    token,
     amount,
-    nonce,
     priorityFee,
+    nonce,
     priority,
-    network = "ethereum",
+    executor,
+    network = "sepolia",
   } = params;
 
   // Validate required parameters
   if (
-    !recipient ||
-    !tokenAddress ||
+    !from ||
+    !token ||
     !amount ||
     !nonce ||
     !priorityFee ||
-    !priority
+    priority === undefined
   ) {
     throw new Error("Missing required parameters for payment signature");
   }
 
-  // Handle username vs address recipient
-  let recipientData;
-  if (recipient.startsWith("0x") && recipient.length === 42) {
-    // It's an address
-    recipientData = {
-      address: recipient,
-      username: null,
-    };
-  } else {
-    // It's a username - hash it
-    const hashedUsername = hashPreregisteredUsername(recipient);
-    recipientData = {
-      address: null,
-      username: hashedUsername.toString(),
-    };
-  }
-
-  // Build the message structure matching frontend
-  const message = {
-    type: "payment",
-    network,
-    recipient: recipientData.address || recipientData.username,
-    tokenAddress,
-    amount: ethers.parseEther(amount.toString()),
-    nonce: BigInt(nonce),
-    priorityFee: ethers.parseEther(priorityFee.toString()),
-    priority: priority.toLowerCase(),
-    timestamp: Math.floor(Date.now() / 1000),
-  };
+  // Build the message in the exact format: 0,pay,to_address,token,amount,priorityFee,nonce,priority,executor
+  const message = [
+    0, // Operation type
+    "pay", // Operation name
+    to_address || "0x0000000000000000000000000000000000000000", // to_address
+    token, // token address
+    amount, // amount (as integer)
+    priorityFee, // priorityFee (as integer)
+    nonce, // nonce (as integer)
+    priority, // priority (boolean)
+    executor || "0x0000000000000000000000000000000000000000", // executor
+  ];
 
   return message;
 };
@@ -77,7 +63,7 @@ const buildMessageSignedForDispersePay = (params) => {
     nonce,
     priority,
     executorAddress,
-    network = "ethereum",
+    network = "sepolia",
   } = params;
 
   // Validate required parameters
@@ -150,7 +136,7 @@ const buildMessageSignedForPresaleStaking = (params) => {
     stakingNonce,
     priorityFee,
     priority,
-    network = "ethereum",
+    network = "sepolia",
   } = params;
 
   // Validate required parameters
@@ -201,7 +187,7 @@ const buildMessageSignedForPublicStaking = (params) => {
     nonce,
     priorityFee,
     priority,
-    network = "ethereum",
+    network = "sepolia",
   } = params;
 
   // Validate required parameters

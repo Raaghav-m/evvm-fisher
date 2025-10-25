@@ -1,10 +1,15 @@
 const logger = require("../utils/logger");
+const { ethers } = require("ethers");
 const {
   getUserSession,
   updateOperationData,
   clearCurrentOperation,
 } = require("../utils/sessionUtils");
-const { createMainMenu, createCancelMenu } = require("../utils/menuUtils");
+const {
+  createMainMenu,
+  createCancelMenu,
+  createPriorityMenu,
+} = require("../utils/menuUtils");
 const {
   setupPaymentHandlers,
   setupStakingHandlers,
@@ -123,6 +128,10 @@ const handleOperationMessage = async (
         text,
         operationData
       );
+      break;
+
+    case "faucet_token":
+      await handleFaucetTokenMessage(bot, chatId, userId, text, operationData);
       break;
 
     default:
@@ -491,20 +500,20 @@ const handleSinglePaymentPriorityFee = async (
   }
 
   operationData.priorityFee = priorityFee;
-  operationData.step = "nonce";
+  operationData.step = "priority";
   updateOperationData(userId, operationData);
-
-  const { generateRandomNonce } = require("../utils/constructMessage");
-  const randomNonce = generateRandomNonce();
 
   await bot.sendMessage(
     chatId,
     `✅ *Priority Fee Set*\n\n` +
       `Priority Fee: ${priorityFee} ETH\n\n` +
-      `Enter a nonce (or use the generated one: \`${randomNonce}\`):`,
+      `⚡ *Priority Level*\n\n` +
+      `Choose the priority level for this transaction:\n\n` +
+      `• *High Priority (Synchronous)*: Uses contract nonce for transaction ordering\n` +
+      `• *Low Priority (Asynchronous)*: Uses random nonce`,
     {
       parse_mode: "Markdown",
-      reply_markup: createCancelMenu().reply_markup,
+      reply_markup: createPriorityMenu().reply_markup,
     }
   );
 };
@@ -544,7 +553,7 @@ const handleSinglePaymentNonce = async (
   );
 };
 
-// Placeholder handlers for other operations
+// Disperse Payment Message Handlers
 const handleDispersePaymentMessage = async (
   bot,
   chatId,
@@ -552,13 +561,420 @@ const handleDispersePaymentMessage = async (
   text,
   operationData
 ) => {
-  // Implementation for disperse payment message handling
+  const step = operationData.step;
+
+  switch (step) {
+    case "recipient_count":
+      // This step is handled by callback, not message
+      await bot.sendMessage(
+        chatId,
+        "Please use the buttons to select recipient count."
+      );
+      break;
+
+    case "recipient_info":
+      await handleDispersePaymentRecipientInfo(
+        bot,
+        chatId,
+        userId,
+        text,
+        operationData
+      );
+      break;
+
+    case "recipient_amount":
+      await handleDispersePaymentRecipientAmount(
+        bot,
+        chatId,
+        userId,
+        text,
+        operationData
+      );
+      break;
+
+    case "token_address":
+      await handleDispersePaymentTokenAddress(
+        bot,
+        chatId,
+        userId,
+        text,
+        operationData
+      );
+      break;
+
+    case "total_amount":
+      await handleDispersePaymentTotalAmount(
+        bot,
+        chatId,
+        userId,
+        text,
+        operationData
+      );
+      break;
+
+    case "priority_fee":
+      await handleDispersePaymentPriorityFee(
+        bot,
+        chatId,
+        userId,
+        text,
+        operationData
+      );
+      break;
+
+    case "executor_address":
+      await handleDispersePaymentExecutorAddress(
+        bot,
+        chatId,
+        userId,
+        text,
+        operationData
+      );
+      break;
+
+    case "nonce":
+      await handleDispersePaymentNonce(
+        bot,
+        chatId,
+        userId,
+        text,
+        operationData
+      );
+      break;
+
+    default:
+      await bot.sendMessage(
+        chatId,
+        "❌ Invalid step in disperse payment flow.",
+        {
+          reply_markup: createMainMenu().reply_markup,
+        }
+      );
+      clearCurrentOperation(userId);
+      break;
+  }
+};
+
+// Disperse Payment Message Handler Functions
+const handleDispersePaymentRecipientInfo = async (
+  bot,
+  chatId,
+  userId,
+  text,
+  operationData
+) => {
+  const { isValidAddress } = require("../utils/validation");
+  const { updateOperationData } = require("../utils/sessionUtils");
+
+  const currentRecipient = operationData.currentRecipient;
+  const recipientType = operationData.recipientType;
+
+  if (recipientType === "username") {
+    // Store username
+    if (!operationData.recipients) operationData.recipients = [];
+    if (!operationData.recipients[currentRecipient]) {
+      operationData.recipients[currentRecipient] = {};
+    }
+    operationData.recipients[currentRecipient].username = text.trim();
+    operationData.recipients[currentRecipient].address = null;
+  } else {
+    // Validate and store address
+    if (!isValidAddress(text.trim())) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Invalid Address*\n\n" +
+          "Please enter a valid Ethereum address (42 characters starting with 0x).",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createCancelMenu().reply_markup,
+        }
+      );
+      return;
+    }
+
+    if (!operationData.recipients) operationData.recipients = [];
+    if (!operationData.recipients[currentRecipient]) {
+      operationData.recipients[currentRecipient] = {};
+    }
+    operationData.recipients[currentRecipient].address = text.trim();
+    operationData.recipients[currentRecipient].username = null;
+  }
+
+  // Ask for amount for this recipient
+  operationData.step = "recipient_amount";
+  updateOperationData(userId, operationData);
+
   await bot.sendMessage(
     chatId,
-    "Disperse payment message handling not yet implemented.",
-    { reply_markup: createMainMenu().reply_markup }
+    `💰 *Amount for Recipient ${currentRecipient + 1}*\n\n` +
+      `Enter the amount to send to this recipient:`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createCancelMenu().reply_markup,
+    }
   );
-  clearCurrentOperation(userId);
+};
+
+const handleDispersePaymentRecipientAmount = async (
+  bot,
+  chatId,
+  userId,
+  text,
+  operationData
+) => {
+  const amount = parseFloat(text.trim());
+  if (isNaN(amount) || amount <= 0) {
+    await bot.sendMessage(
+      chatId,
+      "❌ *Invalid Amount*\n\n" +
+        "Please enter a valid positive number for the amount.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createCancelMenu().reply_markup,
+      }
+    );
+    return;
+  }
+
+  const currentRecipient = operationData.currentRecipient;
+  operationData.recipients[currentRecipient].amount = amount;
+
+  // Check if we need more recipients
+  if (currentRecipient + 1 < operationData.recipientCount) {
+    // Move to next recipient
+    operationData.currentRecipient = currentRecipient + 1;
+    operationData.step = "recipient_info";
+    updateOperationData(userId, operationData);
+
+    await bot.sendMessage(
+      chatId,
+      `📦 *Disperse Payment - Recipient ${
+        operationData.currentRecipient + 1
+      } of ${operationData.recipientCount}*\n\n` +
+        `Choose how you want to specify recipient ${
+          operationData.currentRecipient + 1
+        }:`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createRecipientTypeMenu().reply_markup,
+      }
+    );
+  } else {
+    // All recipients done, ask for token address
+    operationData.step = "token_address";
+    updateOperationData(userId, operationData);
+
+    await bot.sendMessage(
+      chatId,
+      `🪙 *Token Address*\n\n` + `Enter the token contract address:`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createCancelMenu().reply_markup,
+      }
+    );
+  }
+};
+
+const handleDispersePaymentTokenAddress = async (
+  bot,
+  chatId,
+  userId,
+  text,
+  operationData
+) => {
+  const { isValidAddress } = require("../utils/validation");
+  const { updateOperationData } = require("../utils/sessionUtils");
+
+  if (!isValidAddress(text.trim())) {
+    await bot.sendMessage(
+      chatId,
+      "❌ *Invalid Token Address*\n\n" +
+        "Please enter a valid Ethereum address (42 characters starting with 0x).",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createCancelMenu().reply_markup,
+      }
+    );
+    return;
+  }
+
+  operationData.tokenAddress = text.trim();
+  operationData.step = "total_amount";
+  updateOperationData(userId, operationData);
+
+  await bot.sendMessage(
+    chatId,
+    `💰 *Total Amount*\n\n` + `Enter the total amount to be distributed:`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createCancelMenu().reply_markup,
+    }
+  );
+};
+
+const handleDispersePaymentTotalAmount = async (
+  bot,
+  chatId,
+  userId,
+  text,
+  operationData
+) => {
+  const { updateOperationData } = require("../utils/sessionUtils");
+
+  const amount = parseFloat(text.trim());
+  if (isNaN(amount) || amount <= 0) {
+    await bot.sendMessage(
+      chatId,
+      "❌ *Invalid Amount*\n\n" +
+        "Please enter a valid positive number for the total amount.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createCancelMenu().reply_markup,
+      }
+    );
+    return;
+  }
+
+  operationData.totalAmount = amount;
+  operationData.step = "priority_fee";
+  updateOperationData(userId, operationData);
+
+  await bot.sendMessage(
+    chatId,
+    `⛽ *Priority Fee*\n\n` + `Enter the priority fee in ETH:`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createCancelMenu().reply_markup,
+    }
+  );
+};
+
+const handleDispersePaymentPriorityFee = async (
+  bot,
+  chatId,
+  userId,
+  text,
+  operationData
+) => {
+  const { updateOperationData } = require("../utils/sessionUtils");
+
+  const fee = parseFloat(text.trim());
+  if (isNaN(fee) || fee < 0) {
+    await bot.sendMessage(
+      chatId,
+      "❌ *Invalid Priority Fee*\n\n" +
+        "Please enter a valid non-negative number for the priority fee.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createCancelMenu().reply_markup,
+      }
+    );
+    return;
+  }
+
+  operationData.priorityFee = fee;
+  operationData.step = "executor_address";
+  updateOperationData(userId, operationData);
+
+  await bot.sendMessage(
+    chatId,
+    `👤 *Executor Address*\n\n` +
+      `Enter the executor address (optional, leave empty for default):`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createCancelMenu().reply_markup,
+    }
+  );
+};
+
+const handleDispersePaymentExecutorAddress = async (
+  bot,
+  chatId,
+  userId,
+  text,
+  operationData
+) => {
+  const { isValidAddress } = require("../utils/validation");
+  const { updateOperationData } = require("../utils/sessionUtils");
+
+  const executorAddress = text.trim();
+
+  if (executorAddress && !isValidAddress(executorAddress)) {
+    await bot.sendMessage(
+      chatId,
+      "❌ *Invalid Executor Address*\n\n" +
+        "Please enter a valid Ethereum address or leave empty for default.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createCancelMenu().reply_markup,
+      }
+    );
+    return;
+  }
+
+  operationData.executorAddress = executorAddress || null;
+  operationData.step = "priority";
+  updateOperationData(userId, operationData);
+
+  await bot.sendMessage(
+    chatId,
+    `✅ *Executor Address Set*\n\n` +
+      `Executor: ${executorAddress || "Default"}\n\n` +
+      `⚡ *Priority Level*\n\n` +
+      `Choose the priority level for this transaction:\n\n` +
+      `• *High Priority (Synchronous)*: Uses contract nonce for transaction ordering\n` +
+      `• *Low Priority (Asynchronous)*: Uses random nonce`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createPriorityMenu().reply_markup,
+    }
+  );
+};
+
+const handleDispersePaymentNonce = async (
+  bot,
+  chatId,
+  userId,
+  text,
+  operationData
+) => {
+  const { updateOperationData } = require("../utils/sessionUtils");
+  const { generateMersenneTwisterNonce } = require("../utils/dataHashing");
+
+  let nonce;
+  if (text.trim() === "") {
+    // Generate random nonce
+    nonce = generateMersenneTwisterNonce();
+  } else {
+    const parsedNonce = parseInt(text.trim());
+    if (isNaN(parsedNonce) || parsedNonce < 0) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Invalid Nonce*\n\n" +
+          "Please enter a valid non-negative integer or leave empty for random generation.",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createCancelMenu().reply_markup,
+        }
+      );
+      return;
+    }
+    nonce = parsedNonce;
+  }
+
+  operationData.nonce = nonce;
+  operationData.step = "priority";
+  updateOperationData(userId, operationData);
+
+  await bot.sendMessage(
+    chatId,
+    `⚡ *Priority Level*\n\n` +
+      `Choose the priority level for this transaction:`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createPriorityMenu().reply_markup,
+    }
+  );
 };
 
 const handleGoldenStakingMessage = async (
@@ -751,6 +1167,117 @@ const handleUpdateUsernameMessage = async (bot, chatId, userId, text) => {
         reply_markup: createCancelMenu().reply_markup,
       }
     );
+  }
+};
+
+const handleFaucetTokenMessage = async (
+  bot,
+  chatId,
+  userId,
+  text,
+  operationData
+) => {
+  try {
+    const { isValidAddress } = require("../utils/validation");
+    const { clearCurrentOperation } = require("../utils/sessionUtils");
+    const { addBalance } = require("../utils/walletUtils");
+    const { createMainMenu } = require("../utils/menuUtils");
+
+    const tokenAddress = text.trim();
+
+    if (!isValidAddress(tokenAddress)) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Invalid Token Address*\n\n" +
+          "Please enter a valid Ethereum address for the token.\n\n" +
+          "*Example:*\n" +
+          "`0x1234567890123456789012345678901234567890`",
+        {
+          parse_mode: "Markdown",
+          reply_markup: { remove_keyboard: true },
+        }
+      );
+      return;
+    }
+
+    await bot.sendMessage(chatId, "⏳ Adding balance to your account...");
+
+    // Add 1000 tokens (assuming 18 decimals)
+    const quantity = ethers.parseUnits("1000", 18);
+
+    // Get user's private key from session
+    const userSession = getUserSession(userId);
+    if (!userSession || !userSession.wallet || !userSession.wallet.privateKey) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Wallet Not Connected*\n\n" +
+          "Please connect your wallet first to use the faucet.",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createMainMenu().reply_markup,
+        }
+      );
+      clearCurrentOperation(userId);
+      return;
+    }
+
+    // Check if user has contract address set
+    if (!userSession.evvmContractAddress) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Contract Address Not Set*\n\n" +
+          "Please set your EVVM contract address first using the 'Setup Contract' option.",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createMainMenu().reply_markup,
+        }
+      );
+      clearCurrentOperation(userId);
+      return;
+    }
+
+    const result = await addBalance(
+      operationData.wallet,
+      tokenAddress,
+      quantity,
+      operationData.network,
+      userSession.evvmContractAddress, // use user's contract address
+      userSession.wallet.privateKey // user's private key
+    );
+
+    await bot.sendMessage(
+      chatId,
+      `✅ *Balance Added Successfully!*\n\n` +
+        `Wallet: \`${operationData.wallet}\`\n` +
+        `Token: \`${tokenAddress}\`\n` +
+        `Amount: 1000 tokens\n` +
+        `Network: ${operationData.network}\n\n` +
+        `*Transaction Details:*\n` +
+        `Hash: \`${result.transactionHash}\`\n` +
+        `Block: ${result.blockNumber}\n` +
+        `Gas Used: ${result.gasUsed}\n\n` +
+        `Your balance has been updated!`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+
+    clearCurrentOperation(userId);
+  } catch (error) {
+    logger.error("Error in faucet token handler:", error);
+
+    await bot.sendMessage(
+      chatId,
+      "❌ *Error Adding Balance*\n\n" +
+        "There was an error adding balance to your account. Please try again.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+
+    clearCurrentOperation(userId);
   }
 };
 

@@ -15,7 +15,7 @@ const validateConfig = () => {
   // }
 
   // Set defaults
-  process.env.DEFAULT_NETWORK = process.env.DEFAULT_NETWORK || "ethereum";
+  process.env.DEFAULT_NETWORK = process.env.DEFAULT_NETWORK || "sepolia";
   process.env.SUPPORTED_NETWORKS =
     process.env.SUPPORTED_NETWORKS || "ethereum,arbitrum";
   process.env.LOG_LEVEL = process.env.LOG_LEVEL || "info";
@@ -32,11 +32,11 @@ const getSupportedNetworks = () => {
 
 const getRpcUrl = (network) => {
   const networkMap = {
-    ethereum: "https://eth-sepolia.g.alchemy.com/v2/bCL-PmfJFUH8F65xv9be4",
+    sepolia: "https://eth-sepolia.g.alchemy.com/v2/bCL-PmfJFUH8F65xv9be4",
     arbitrum: "https://arb-sepolia.g.alchemy.com/v2/bCL-PmfJFUH8F65xv9be4",
   };
 
-  return networkMap[network] || networkMap.ethereum;
+  return networkMap[network] || networkMap.sepolia;
 };
 
 module.exports = {

@@ -194,6 +194,20 @@ const setupCallbackHandlers = (bot) => {
           break;
 
         default:
+          // Handle execute payment callbacks
+          if (data.startsWith("execute_single_payment_")) {
+            const targetUserId = data.replace("execute_single_payment_", "");
+            if (targetUserId === userId.toString()) {
+              await handleExecuteSinglePayment(bot, chatId, userId);
+            } else {
+              await bot.sendMessage(
+                chatId,
+                "❌ This action is not authorized for your account."
+              );
+            }
+            break;
+          }
+
           // Handle operation-specific callbacks
           await handleOperationCallbacks(bot, chatId, userId, data);
           break;
@@ -346,7 +360,11 @@ const handleWalletInfo = async (bot, chatId, userId) => {
   }
 
   try {
-    const { getBalance, getTokenBalance } = require("../utils/walletUtils");
+    const {
+      getBalance,
+      getTokenBalance,
+      executePay,
+    } = require("../utils/walletUtils");
     const balance = await getBalance(
       userSession.wallet.address,
       userSession.network
@@ -550,7 +568,14 @@ const handleRecipientTypeSelection = async (bot, chatId, userId, type) => {
   const operationData = userSession.operationData;
 
   operationData.recipientType = type;
-  operationData.step = "recipient"; // Set the next step
+
+  // Set the next step based on operation type
+  if (userSession.currentOperation === "single_payment") {
+    operationData.step = "recipient";
+  } else if (userSession.currentOperation === "disperse_payment") {
+    operationData.step = "recipient_info";
+  }
+
   updateOperationData(userId, operationData);
 
   if (type === "username") {
@@ -852,7 +877,11 @@ const handleBalance = async (bot, chatId, userId) => {
 
 // Faucet Handler
 const handleFaucet = async (bot, chatId, userId) => {
-  const { getUserSession } = require("../utils/sessionUtils");
+  const {
+    getUserSession,
+    setCurrentOperation,
+    updateOperationData,
+  } = require("../utils/sessionUtils");
 
   const userSession = getUserSession(userId);
 
@@ -869,25 +898,127 @@ const handleFaucet = async (bot, chatId, userId) => {
     return;
   }
 
+  // Set operation to get token address
+  setCurrentOperation(userId, "faucet_token", {
+    wallet: userSession.wallet.address,
+    network: userSession.network,
+  });
+
   await bot.sendMessage(
     chatId,
-    `🚰 *Testnet Faucet*\n\n` +
+    `🚰 *EVVM Faucet*\n\n` +
       `Wallet: \`${userSession.wallet.address}\`\n` +
       `Network: ${userSession.network}\n\n` +
-      `*Available Faucets:*\n` +
-      `• Ethereum Sepolia: https://sepoliafaucet.com/\n` +
-      `• Arbitrum Sepolia: https://faucet.quicknode.com/arbitrum/sepolia\n\n` +
-      `*Instructions:*\n` +
-      `1. Visit the faucet website\n` +
-      `2. Enter your wallet address\n` +
-      `3. Complete any required verification\n` +
-      `4. Receive testnet tokens\n\n` +
-      `*Note:* Faucet tokens are for testing purposes only.`,
+      `Please enter the token address you want to receive:\n\n` +
+      `*Example:*\n` +
+      `\`0x1234567890123456789012345678901234567890\`\n\n` +
+      `*Note:* This will add 1000 tokens to your balance.`,
     {
       parse_mode: "Markdown",
-      reply_markup: createMainMenu().reply_markup,
+      reply_markup: { remove_keyboard: true },
     }
   );
 };
 
-module.exports = { setupCallbackHandlers };
+// Execute Payment Handler
+const handleExecuteSinglePayment = async (bot, chatId, userId) => {
+  try {
+    const userSession = getUserSession(userId);
+
+    if (!userSession || !userSession.signatureData) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *No Signature Data Found*\n\n" +
+          "Please generate a signature first before executing the payment.",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createMainMenu().reply_markup,
+        }
+      );
+      return;
+    }
+
+    if (!userSession.wallet || !userSession.wallet.privateKey) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Wallet Not Connected*\n\n" +
+          "Please connect your wallet first to execute the payment.",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createMainMenu().reply_markup,
+        }
+      );
+      return;
+    }
+
+    if (!userSession.evvmContractAddress) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Contract Address Not Set*\n\n" +
+          "Please set your EVVM contract address first using the 'Setup Contract' option.",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createMainMenu().reply_markup,
+        }
+      );
+      return;
+    }
+
+    await bot.sendMessage(chatId, "⏳ Executing payment on the blockchain...");
+
+    // Prepare the input data for the contract call
+    const inputData = {
+      from: userSession.signatureData.signatureData.from,
+      to_address: userSession.signatureData.signatureData.to_address,
+      to_identity: userSession.signatureData.signatureData.to_identity,
+      token: userSession.signatureData.signatureData.token,
+      amount: userSession.signatureData.signatureData.amount,
+      priorityFee: userSession.signatureData.signatureData.priorityFee,
+      nonce: userSession.signatureData.signatureData.nonce,
+      priority: userSession.signatureData.signatureData.priority,
+      executor: userSession.signatureData.signatureData.executor,
+      signature: userSession.signatureData.signature, // The signature from the signing process
+    };
+
+    // Execute the payment
+    const result = await executePay(
+      inputData,
+      userSession.network,
+      userSession.evvmContractAddress,
+      userSession.wallet.privateKey
+    );
+
+    await bot.sendMessage(
+      chatId,
+      `✅ *Payment Executed Successfully!*\n\n` +
+        `*Transaction Details:*\n` +
+        `Hash: \`${result.transactionHash}\`\n` +
+        `Block: ${result.blockNumber}\n` +
+        `Gas Used: ${result.gasUsed}\n` +
+        `Status: ${result.status === 1 ? "Success" : "Failed"}\n\n` +
+        `Your payment has been processed on the blockchain!`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+
+    // Clear the signature data after execution
+    delete userSession.signatureData;
+    delete userSession.summary;
+  } catch (error) {
+    logger.error("Error executing single payment:", error);
+
+    await bot.sendMessage(
+      chatId,
+      "❌ *Error Executing Payment*\n\n" +
+        "There was an error executing the payment on the blockchain. Please try again.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+  }
+};
+
+module.exports = { setupCallbackHandlers, handleExecuteSinglePayment };

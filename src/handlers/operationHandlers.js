@@ -49,6 +49,18 @@ const setupPaymentHandlers = {
       const userSession = getUserSession(userId);
       const operationData = userSession.operationData;
 
+      // Generate nonce for display
+      const { generateNonceByPriority } = require("../utils/signatureUtils");
+      const nonce = await generateNonceByPriority(
+        userSession.wallet.address,
+        operationData.priority,
+        userSession.network,
+        userSession.evvmContractAddress
+      );
+
+      // Store the nonce in operation data
+      operationData.nonce = nonce;
+
       // Show confirmation first
       const confirmationMessage =
         `📝 *Single Payment Signature Ready*\n\n` +
@@ -57,7 +69,7 @@ const setupPaymentHandlers = {
         `Amount: ${operationData.amount}\n` +
         `Priority Fee: ${operationData.priorityFee} ETH\n` +
         `Priority: ${operationData.priority}\n` +
-        `Nonce: ${operationData.nonce}\n` +
+        `Nonce: ${nonce}\n` +
         `Network: ${userSession.network}\n\n` +
         `Do you want to sign this transaction?`;
 
@@ -100,7 +112,6 @@ const setupPaymentHandlers = {
           recipient: operationData.recipient,
           tokenAddress: operationData.tokenAddress,
           amount: operationData.amount,
-          nonce: operationData.nonce,
           priorityFee: operationData.priorityFee,
           priority: operationData.priority,
           evvmContractAddress: userSession.evvmContractAddress,
@@ -110,30 +121,51 @@ const setupPaymentHandlers = {
 
       const summary = createSignatureSummary(signatureData, "single_payment");
 
-      // Display the signature
+      // Display the signature in the exact format as the example
+      const sigData = signatureData.signatureData;
       const signatureMessage =
         `✅ <b>Single Payment Signature Generated</b>\n\n` +
-        `Wallet: <code>${summary.walletAddress}</code>\n` +
-        `Type: ${summary.type}\n\n` +
-        `<b>Signature Details:</b>\n` +
-        `R: <code>${summary.signature.r}</code>\n` +
-        `S: <code>${summary.signature.s}</code>\n` +
-        `V: <code>${summary.signature.v}</code>\n\n` +
-        `<b>Full Signature:</b>\n` +
-        `<code>${summary.signature.full}</code>\n\n` +
-        `<b>Message Hash:</b>\n` +
-        `<pre>${JSON.stringify(
-          summary.message,
-          (key, value) =>
-            typeof value === "bigint" ? value.toString() : value,
-          2
-        )}</pre>\n\n` +
+        `<b>Signature Data:</b>\n` +
+        `from: <code>${sigData.from}</code>\n` +
+        `to_address: <code>${sigData.to_address}</code>\n` +
+        `to_identity: <code>${sigData.to_identity || ""}</code>\n` +
+        `token: <code>${sigData.token}</code>\n` +
+        `amount: <code>${sigData.amount}</code>\n` +
+        `priorityFee: <code>${sigData.priorityFee}</code>\n` +
+        `nonce: <code>${sigData.nonce}</code>\n` +
+        `priority: <code>${sigData.priority}</code>\n` +
+        `executor: <code>${sigData.executor}</code>\n` +
+        `signature: <code>${summary.signature.full}</code>\n\n` +
+        `<b>Message being signed:</b>\n` +
+        `<code>${summary.message.join(",")}</code>\n\n` +
         `Signature generated at: ${summary.timestamp}`;
+
+      // Create inline keyboard with Execute Payment button
+      const executeKeyboard = {
+        inline_keyboard: [
+          [
+            {
+              text: "🚀 Execute Payment",
+              callback_data: `execute_single_payment_${userId}`,
+            },
+          ],
+          [
+            {
+              text: "🏠 Main Menu",
+              callback_data: "main_menu",
+            },
+          ],
+        ],
+      };
 
       await bot.sendMessage(chatId, signatureMessage, {
         parse_mode: "HTML",
-        reply_markup: createMainMenu().reply_markup,
+        reply_markup: executeKeyboard,
       });
+
+      // Store the signature data for execution
+      userSession.signatureData = signatureData;
+      userSession.summary = summary;
 
       clearCurrentOperation(userId);
       logger.info(`Single payment signature generated for user ${userId}`);
