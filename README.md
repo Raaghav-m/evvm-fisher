@@ -5,12 +5,14 @@ A comprehensive Telegram bot implementation that replicates the functionality of
 ## ✨ Features
 
 ### 🔐 **Signature Generation**
+
 - **Single Payment Signatures**: Create signatures for individual payments
 - **Disperse Payment Signatures**: Batch payment signatures (1-5 recipients)
 - **Public Staking Signatures**: Golden staking and unstaking operations
 - **Presale Staking Signatures**: Dual signature generation for presale operations
 
 ### 🛡️ **Security & Validation**
+
 - **EIP-712 Typed Data Signing**: Industry-standard signature format
 - **Keccak-256 Hashing**: Secure username and data hashing
 - **Mersenne Twister Nonces**: Cryptographically secure nonce generation
@@ -18,11 +20,13 @@ A comprehensive Telegram bot implementation that replicates the functionality of
 - **Session Management**: Secure temporary private key storage
 
 ### 🌐 **Network Support**
+
 - **Ethereum Sepolia Testnet**: Primary network support
 - **Arbitrum Sepolia Testnet**: Secondary network support
 - **Configurable RPC URLs**: Easy network switching
 
 ### 💬 **User Experience**
+
 - **Conversational Interface**: Step-by-step guided process
 - **Inline Keyboards**: Intuitive navigation
 - **Real-time Validation**: Immediate feedback on inputs
@@ -55,6 +59,7 @@ src/
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js 18 or later
 - Telegram Bot Token
 - EVVM Contract Address
@@ -62,12 +67,14 @@ src/
 ### Installation
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/Raaghav-m/evvm-fisher.git
    cd evvm-fisher
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
    # or
@@ -75,15 +82,17 @@ src/
    ```
 
 3. **Configure environment:**
+
    ```bash
    cp env.example .env
    ```
 
 4. **Set up environment variables:**
+
    ```env
    # Required
    TELEGRAM_BOT_TOKEN=your_bot_token_here
-   
+
    # Optional (with defaults)
    EVM_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/your_key
    ARBITRUM_RPC_URL=https://arb-sepolia.g.alchemy.com/v2/your_key
@@ -103,6 +112,7 @@ src/
 ## 📱 Usage
 
 ### 1. **Initial Setup**
+
 - Start the bot with `/start`
 - Provide EVVM contract address when prompted
 - Connect your wallet by entering private key
@@ -110,6 +120,7 @@ src/
 ### 2. **Creating Signatures**
 
 #### **Single Payment**
+
 1. Select "💸 Payment Signatures" → "Single Payment"
 2. Choose recipient type (Address/Username)
 3. Enter recipient information
@@ -118,6 +129,7 @@ src/
 6. Confirm and generate signature
 
 #### **Disperse Payment**
+
 1. Select "💸 Payment Signatures" → "Disperse Payment"
 2. Choose number of recipients (1-5)
 3. Enter recipient details for each
@@ -125,6 +137,7 @@ src/
 5. Generate batch signature
 
 #### **Staking Operations**
+
 1. Select "🏦 Staking Signatures"
 2. Choose staking type (Golden/Presale)
 3. Enter staking address and amount
@@ -132,7 +145,9 @@ src/
 5. Generate staking signature(s)
 
 ### 3. **Signature Output**
+
 The bot provides:
+
 - **Signature Components**: R, S, V values
 - **Full Signature**: Complete signature string
 - **Message Hash**: EIP-712 message structure
@@ -142,19 +157,22 @@ The bot provides:
 ## 🔧 Configuration
 
 ### **Network Configuration**
+
 ```javascript
 // Default testnet URLs
 const networkMap = {
   ethereum: "https://eth-sepolia.g.alchemy.com/v2/your_key",
-  arbitrum: "https://arb-sepolia.g.alchemy.com/v2/your_key"
+  arbitrum: "https://arb-sepolia.g.alchemy.com/v2/your_key",
 };
 ```
 
 ### **Chain IDs**
+
 - **Ethereum Sepolia**: 11155111
 - **Arbitrum Sepolia**: 421614
 
 ### **Session Management**
+
 - **Auto-cleanup**: Sessions older than 24 hours are removed
 - **Memory Storage**: In-memory session storage (production: use database)
 - **Security**: Private keys stored temporarily, cleared after use
@@ -162,17 +180,20 @@ const networkMap = {
 ## 🛡️ Security Features
 
 ### **Private Key Handling**
+
 - Keys stored temporarily in session memory
 - Automatic cleanup after signature generation
 - No persistent storage of sensitive data
 
 ### **Input Validation**
+
 - Address format validation
 - Username format validation (3-20 chars, alphanumeric + underscore)
 - Amount validation (positive numbers)
 - Priority fee validation (non-negative)
 
 ### **Cryptographic Security**
+
 - **Keccak-256 Hashing**: For username and data hashing
 - **Mersenne Twister**: Secure nonce generation
 - **EIP-712 Signing**: Standard typed data signatures
@@ -181,6 +202,7 @@ const networkMap = {
 ## 📊 Monitoring & Logging
 
 ### **Winston Logging**
+
 ```javascript
 // Log levels: error, warn, info, debug
 logger.info("User started bot", { userId, timestamp });
@@ -188,6 +210,7 @@ logger.error("Signature generation failed", { error, userId });
 ```
 
 ### **Session Statistics**
+
 ```javascript
 const stats = getSessionStats();
 // Returns: total, withWallet, activeLastHour, activeLastDay, currentOperations
@@ -196,6 +219,7 @@ const stats = getSessionStats();
 ## 🔄 Development
 
 ### **Scripts**
+
 ```bash
 npm start          # Start production server
 npm run dev        # Start with nodemon
@@ -205,6 +229,7 @@ npm run clean      # Clean logs and cache
 ```
 
 ### **Code Quality**
+
 - **ESLint**: Code linting and formatting
 - **Modular Architecture**: Clean separation of concerns
 - **Error Handling**: Comprehensive try-catch blocks
@@ -213,7 +238,9 @@ npm run clean      # Clean logs and cache
 ## 🚀 Deployment
 
 ### **Environment Setup**
+
 1. **Production Environment Variables:**
+
    ```env
    TELEGRAM_BOT_TOKEN=your_production_token
    EVM_RPC_URL=your_production_rpc_url
@@ -222,6 +249,7 @@ npm run clean      # Clean logs and cache
    ```
 
 2. **Database Integration** (Recommended for production):
+
    - Replace in-memory session storage
    - Add Redis or PostgreSQL for session persistence
    - Implement session encryption
@@ -233,6 +261,7 @@ npm run clean      # Clean logs and cache
    - Set up monitoring and alerting
 
 ### **Docker Deployment**
+
 ```dockerfile
 FROM node:18-alpine
 WORKDIR /app
@@ -246,12 +275,14 @@ CMD ["npm", "start"]
 ## 📈 Performance
 
 ### **Current Metrics**
+
 - **Session Cleanup**: Every hour
 - **Memory Usage**: ~50MB base + ~1MB per active session
 - **Response Time**: <2 seconds for signature generation
 - **Concurrent Users**: Supports 100+ simultaneous users
 
 ### **Optimization Recommendations**
+
 - Database integration for session persistence
 - Redis caching for frequently accessed data
 - Connection pooling for RPC calls
@@ -277,6 +308,7 @@ MIT License - see LICENSE file for details
 ## 📞 Support
 
 For issues and questions:
+
 - Create an issue on GitHub
 - Check the logs for error details
 - Verify environment configuration
@@ -284,3 +316,4 @@ For issues and questions:
 ---
 
 **Built with ❤️ for the EVVM ecosystem**
+
