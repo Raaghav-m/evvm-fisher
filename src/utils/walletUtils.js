@@ -97,13 +97,47 @@ const verifyTypedDataSignature = (typedData, signature, expectedAddress) => {
 };
 
 /**
- * Get wallet balance
+ * Get wallet balance using EVVM contract
  */
-const getBalance = async (address, network = "ethereum") => {
+const getBalance = async (
+  user,
+  token,
+  network = "ethereum",
+  contractAddress = "0xF817e9ad82B4a19F00dA7A248D9e556Ba96e6366"
+) => {
   try {
+    // Use provided contract address or fall back to environment variable
+    const evvmContractAddress =
+      contractAddress || process.env.EVVM_CONTRACT_ADDRESS;
+
+    if (!evvmContractAddress) {
+      throw new Error(
+        "EVVM contract address not provided. Please set EVVM_CONTRACT_ADDRESS in your environment variables."
+      );
+    }
+
+    // Define the EVVM ABI locally to avoid ES module issues
+    const EvvmABI = [
+      {
+        inputs: [
+          { internalType: "address", name: "user", type: "address" },
+          { internalType: "address", name: "token", type: "address" },
+        ],
+        name: "getBalance",
+        outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+        stateMutability: "view",
+        type: "function",
+      },
+    ];
+
     const provider = createProvider(network);
-    const balance = await provider.getBalance(address);
-    return balance;
+    const evvmContract = new ethers.Contract(
+      evvmContractAddress,
+      EvvmABI,
+      provider
+    );
+    const result = await evvmContract.getBalance(user, token);
+    return result ? result.toString() : "0";
   } catch (error) {
     logger.error("Error getting balance:", error);
     throw new Error("Failed to get wallet balance");

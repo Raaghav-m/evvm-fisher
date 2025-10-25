@@ -73,6 +73,18 @@ const handleOperationMessage = async (
       await handleWalletConnection(bot, chatId, userId, text);
       break;
 
+    case "register_username":
+      await handleRegisterUsernameMessage(bot, chatId, userId, text);
+      break;
+
+    case "check_username":
+      await handleCheckUsernameMessage(bot, chatId, userId, text);
+      break;
+
+    case "update_username":
+      await handleUpdateUsernameMessage(bot, chatId, userId, text);
+      break;
+
     case "single_payment":
       await handleSinglePaymentMessage(
         bot,
@@ -181,13 +193,16 @@ const handleWalletConnection = async (bot, chatId, userId, text) => {
     const { isValidPrivateKey } = require("../utils/validation");
     const { setWallet } = require("../utils/sessionUtils");
 
-    // Validate private key
+    // Validate private key format
     if (!isValidPrivateKey(text)) {
       await bot.sendMessage(
         chatId,
-        "❌ *Invalid Private Key*\n\n" +
-          "Please enter a valid Ethereum private key (64 hex characters, optionally prefixed with 0x).\n\n" +
-          "Example: `0x1234567890abcdef...`",
+        "❌ *Invalid Private Key Format*\n\n" +
+          "Your private key must be:\n" +
+          "• 64 hexadecimal characters\n" +
+          "• Start with `0x` (optional)\n" +
+          "• Example: `0x1234567890abcdef...`\n\n" +
+          "Please check your private key and try again:",
         {
           parse_mode: "Markdown",
           reply_markup: createCancelMenu().reply_markup,
@@ -213,9 +228,17 @@ const handleWalletConnection = async (bot, chatId, userId, text) => {
     await bot.sendMessage(
       chatId,
       `✅ *Wallet Connected Successfully!*\n\n` +
-        `Address: \`${wallet.address}\`\n` +
-        `Network: ethereum\n\n` +
-        `You can now create payment and staking signatures.`,
+        `**Wallet Details:**\n` +
+        `• Address: \`${wallet.address}\`\n` +
+        `• Network: Ethereum Sepolia Testnet\n` +
+        `• Status: Ready for signing\n\n` +
+        `**Available Features:**\n` +
+        `• 🏷️ Name Service - Manage usernames\n` +
+        `• 💸 Payment Signatures - Create payment signatures\n` +
+        `• 🏦 Staking Signatures - Create staking signatures\n` +
+        `• 💰 Balance - Check your wallet balance\n` +
+        `• 🚰 Faucet - Get testnet tokens\n\n` +
+        `You can now use all bot features!`,
       {
         parse_mode: "Markdown",
         reply_markup: createMainMenu().reply_markup,
@@ -228,7 +251,11 @@ const handleWalletConnection = async (bot, chatId, userId, text) => {
     await bot.sendMessage(
       chatId,
       "❌ *Error Connecting Wallet*\n\n" +
-        "There was an error connecting your wallet. Please check your private key and try again.",
+        "There was an error connecting your wallet. This could be due to:\n" +
+        "• Invalid private key format\n" +
+        "• Network connectivity issues\n" +
+        "• Invalid private key\n\n" +
+        "Please check your private key and try again:",
       {
         parse_mode: "Markdown",
         reply_markup: createCancelMenu().reply_markup,
@@ -564,6 +591,167 @@ const handlePresaleStakingMessage = async (
     { reply_markup: createMainMenu().reply_markup }
   );
   clearCurrentOperation(userId);
+};
+
+// Name Service Message Handlers
+const handleRegisterUsernameMessage = async (bot, chatId, userId, text) => {
+  try {
+    const { isValidUsername } = require("../utils/validation");
+    const { clearCurrentOperation } = require("../utils/sessionUtils");
+
+    const username = text.trim();
+
+    if (!isValidUsername(username)) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Invalid Username*\n\n" +
+          "Username must be:\n" +
+          "• 3-20 characters long\n" +
+          "• Alphanumeric and underscores only\n" +
+          "• No spaces or special characters\n\n" +
+          "Please enter a valid username:",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createCancelMenu().reply_markup,
+        }
+      );
+      return;
+    }
+
+    // TODO: Implement actual username registration
+    await bot.sendMessage(
+      chatId,
+      `✅ *Username Registration*\n\n` +
+        `Username: \`${username}\`\n\n` +
+        `*Status:* Username registration is not yet implemented.\n` +
+        `This feature will be available in future updates.\n\n` +
+        `*Note:* Username registration requires interaction with the EVVM contract.`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+
+    clearCurrentOperation(userId);
+    logger.info(`User ${userId} attempted to register username: ${username}`);
+  } catch (error) {
+    logger.error("Error handling username registration:", error);
+    await bot.sendMessage(
+      chatId,
+      "❌ *Error Registering Username*\n\n" +
+        "There was an error processing your username registration. Please try again.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createCancelMenu().reply_markup,
+      }
+    );
+  }
+};
+
+const handleCheckUsernameMessage = async (bot, chatId, userId, text) => {
+  try {
+    const { isValidUsername } = require("../utils/validation");
+    const { clearCurrentOperation } = require("../utils/sessionUtils");
+
+    const username = text.trim();
+
+    if (!isValidUsername(username)) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Invalid Username Format*\n\n" +
+          "Username must be:\n" +
+          "• 3-20 characters long\n" +
+          "• Alphanumeric and underscores only\n\n" +
+          "Please enter a valid username to check:",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createCancelMenu().reply_markup,
+        }
+      );
+      return;
+    }
+
+    // TODO: Implement actual username checking
+    await bot.sendMessage(
+      chatId,
+      `🔍 *Username Check*\n\n` +
+        `Username: \`${username}\`\n\n` +
+        `*Status:* Username checking is not yet implemented.\n` +
+        `This feature will be available in future updates.\n\n` +
+        `*Note:* Username checking requires interaction with the EVVM contract.`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+
+    clearCurrentOperation(userId);
+    logger.info(`User ${userId} checked username: ${username}`);
+  } catch (error) {
+    logger.error("Error checking username:", error);
+    await bot.sendMessage(
+      chatId,
+      "❌ *Error Checking Username*\n\n" +
+        "There was an error checking the username. Please try again.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createCancelMenu().reply_markup,
+      }
+    );
+  }
+};
+
+const handleUpdateUsernameMessage = async (bot, chatId, userId, text) => {
+  try {
+    const { isValidUsername } = require("../utils/validation");
+    const { clearCurrentOperation } = require("../utils/sessionUtils");
+
+    const username = text.trim();
+
+    if (!isValidUsername(username)) {
+      await bot.sendMessage(
+        chatId,
+        "❌ *Invalid Username*\n\n" +
+          "Username must be:\n" +
+          "• 3-20 characters long\n" +
+          "• Alphanumeric and underscores only\n\n" +
+          "Please enter a valid new username:",
+        {
+          parse_mode: "Markdown",
+          reply_markup: createCancelMenu().reply_markup,
+        }
+      );
+      return;
+    }
+
+    // TODO: Implement actual username updating
+    await bot.sendMessage(
+      chatId,
+      `🔄 *Username Update*\n\n` +
+        `New Username: \`${username}\`\n\n` +
+        `*Status:* Username updating is not yet implemented.\n` +
+        `This feature will be available in future updates.\n\n` +
+        `*Note:* Username updating requires interaction with the EVVM contract.`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+
+    clearCurrentOperation(userId);
+    logger.info(`User ${userId} attempted to update username to: ${username}`);
+  } catch (error) {
+    logger.error("Error handling username update:", error);
+    await bot.sendMessage(
+      chatId,
+      "❌ *Error Updating Username*\n\n" +
+        "There was an error processing your username update. Please try again.",
+      {
+        parse_mode: "Markdown",
+        reply_markup: createCancelMenu().reply_markup,
+      }
+    );
+  }
 };
 
 module.exports = { setupMessageHandlers };

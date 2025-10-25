@@ -75,6 +75,36 @@ const setupCallbackHandlers = (bot) => {
           await handleHelp(bot, chatId);
           break;
 
+        // Name Service
+        case "name_service":
+          await handleNameService(bot, chatId, userId);
+          break;
+
+        case "register_username":
+          await handleRegisterUsername(bot, chatId, userId);
+          break;
+
+        case "check_username":
+          await handleCheckUsername(bot, chatId, userId);
+          break;
+
+        case "my_usernames":
+          await handleMyUsernames(bot, chatId, userId);
+          break;
+
+        case "update_username":
+          await handleUpdateUsername(bot, chatId, userId);
+          break;
+
+        // Balance and Faucet
+        case "balance":
+          await handleBalance(bot, chatId, userId);
+          break;
+
+        case "faucet":
+          await handleFaucet(bot, chatId, userId);
+          break;
+
         // Network selection
         case "network_ethereum":
           await handleNetworkSelection(bot, chatId, userId, "ethereum");
@@ -207,12 +237,18 @@ const handleConnectWallet = async (bot, chatId, userId) => {
     await bot.sendMessage(
       chatId,
       `🔗 *Connect Your Wallet*\n\n` +
-        `To use this bot, you need to connect your wallet by providing your private key.\n\n` +
-        `⚠️ *Security Notice:*\n` +
-        `• Your private key is never stored\n` +
-        `• It's only used for signing operations\n` +
+        `To use the EVVM Signature Constructor Bot, you need to connect your wallet.\n\n` +
+        `*Please provide your wallet information:*\n\n` +
+        `**Step 1:** Send your Ethereum private key\n` +
+        `• Must start with \`0x\`\n` +
+        `• Must be 64 characters long\n` +
+        `• Example: \`0x1234567890abcdef...\`\n\n` +
+        `*Security Notice:*\n` +
+        `• Your private key is only used temporarily for signing\n` +
+        `• It's never stored permanently\n` +
+        `• It's cleared after each session\n` +
         `• All operations are encrypted\n\n` +
-        `Please send your private key (starting with 0x):`,
+        `Please send your private key:`,
       {
         parse_mode: "Markdown",
         reply_markup: createCancelMenu().reply_markup,
@@ -651,6 +687,207 @@ const handleOperationCallbacks = async (bot, chatId, userId, data) => {
   // For now, just log and return to main menu
   logger.info(`Unhandled callback data: ${data} for user ${userId}`);
   await handleMainMenu(bot, chatId);
+};
+
+// Name Service Handlers
+const handleNameService = async (bot, chatId, userId) => {
+  const { createNameServiceMenu } = require("../utils/menuUtils");
+
+  await bot.sendMessage(
+    chatId,
+    `🏷️ *Name Service*\n\n` +
+      `Manage your EVVM usernames and identity.\n\n` +
+      `Choose an option below:`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createNameServiceMenu().reply_markup,
+    }
+  );
+};
+
+const handleRegisterUsername = async (bot, chatId, userId) => {
+  const { setCurrentOperation } = require("../utils/sessionUtils");
+
+  setCurrentOperation(userId, "register_username");
+
+  await bot.sendMessage(
+    chatId,
+    `📝 *Register Username*\n\n` +
+      `Enter the username you want to register:\n\n` +
+      `*Requirements:*\n` +
+      `• 3-20 characters\n` +
+      `• Alphanumeric and underscores only\n` +
+      `• Must be unique\n\n` +
+      `Please enter your desired username:`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createCancelMenu().reply_markup,
+    }
+  );
+};
+
+const handleCheckUsername = async (bot, chatId, userId) => {
+  const { setCurrentOperation } = require("../utils/sessionUtils");
+
+  setCurrentOperation(userId, "check_username");
+
+  await bot.sendMessage(
+    chatId,
+    `🔍 *Check Username*\n\n` +
+      `Enter the username you want to check:\n\n` +
+      `This will show you if the username is available and its current status.`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createCancelMenu().reply_markup,
+    }
+  );
+};
+
+const handleMyUsernames = async (bot, chatId, userId) => {
+  const { getUserSession } = require("../utils/sessionUtils");
+
+  const userSession = getUserSession(userId);
+
+  if (!userSession || !userSession.wallet) {
+    await bot.sendMessage(
+      chatId,
+      `❌ *No Wallet Connected*\n\n` +
+        `Please connect your wallet first to view your usernames.`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+    return;
+  }
+
+  // TODO: Implement username storage and retrieval
+  await bot.sendMessage(
+    chatId,
+    `📋 *My Usernames*\n\n` +
+      `Wallet: \`${userSession.wallet.address}\`\n\n` +
+      `*Registered Usernames:*\n` +
+      `• No usernames registered yet\n\n` +
+      `*Note:* Username registration will be implemented in future updates.`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createMainMenu().reply_markup,
+    }
+  );
+};
+
+const handleUpdateUsername = async (bot, chatId, userId) => {
+  const { setCurrentOperation } = require("../utils/sessionUtils");
+
+  setCurrentOperation(userId, "update_username");
+
+  await bot.sendMessage(
+    chatId,
+    `🔄 *Update Username*\n\n` +
+      `Enter the new username you want to set:\n\n` +
+      `*Note:* This will replace your current username.`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createCancelMenu().reply_markup,
+    }
+  );
+};
+
+// Balance Handler
+const handleBalance = async (bot, chatId, userId) => {
+  const { getUserSession } = require("../utils/sessionUtils");
+  const { getBalance } = require("../utils/walletUtils");
+
+  const userSession = getUserSession(userId);
+
+  if (!userSession || !userSession.wallet) {
+    await bot.sendMessage(
+      chatId,
+      `❌ *No Wallet Connected*\n\n` +
+        `Please connect your wallet first to check your balance.`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+    return;
+  }
+
+  try {
+    await bot.sendMessage(chatId, `⏳ Checking balance...`);
+
+    const balance = await getBalance(
+      userSession.wallet.address,
+      process.env.DEFAULT_TOKEN_ADDRESS ||
+        "0x0000000000000000000000000000000000000000",
+      userSession.network,
+      process.env.EVVM_CONTRACT_ADDRESS
+    );
+
+    await bot.sendMessage(
+      chatId,
+      `💰 *Wallet Balance*\n\n` +
+        `Wallet: \`${userSession.wallet.address}\`\n` +
+        `Network: ${userSession.network}\n` +
+        `Balance: ${balance} ETH\n\n` +
+        `*Note:* This is your ETH balance on the testnet.`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+  } catch (error) {
+    logger.error("Error getting balance:", error);
+    await bot.sendMessage(
+      chatId,
+      `❌ *Error Getting Balance*\n\n` +
+        `Unable to fetch your wallet balance. Please try again later.`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+  }
+};
+
+// Faucet Handler
+const handleFaucet = async (bot, chatId, userId) => {
+  const { getUserSession } = require("../utils/sessionUtils");
+
+  const userSession = getUserSession(userId);
+
+  if (!userSession || !userSession.wallet) {
+    await bot.sendMessage(
+      chatId,
+      `❌ *No Wallet Connected*\n\n` +
+        `Please connect your wallet first to use the faucet.`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: createMainMenu().reply_markup,
+      }
+    );
+    return;
+  }
+
+  await bot.sendMessage(
+    chatId,
+    `🚰 *Testnet Faucet*\n\n` +
+      `Wallet: \`${userSession.wallet.address}\`\n` +
+      `Network: ${userSession.network}\n\n` +
+      `*Available Faucets:*\n` +
+      `• Ethereum Sepolia: https://sepoliafaucet.com/\n` +
+      `• Arbitrum Sepolia: https://faucet.quicknode.com/arbitrum/sepolia\n\n` +
+      `*Instructions:*\n` +
+      `1. Visit the faucet website\n` +
+      `2. Enter your wallet address\n` +
+      `3. Complete any required verification\n` +
+      `4. Receive testnet tokens\n\n` +
+      `*Note:* Faucet tokens are for testing purposes only.`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: createMainMenu().reply_markup,
+    }
+  );
 };
 
 module.exports = { setupCallbackHandlers };

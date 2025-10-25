@@ -40,16 +40,19 @@ const setupCommandHandlers = (bot) => {
       const welcomeMessage = `
 🚀 *Welcome to EVVM Signature Constructor Bot!*
 
-This bot helps you create and sign EVVM (Ethereum Virtual Virtual Machine) transactions for:
-• Payment signatures (single & batch)
-• Staking signatures (golden & presale)
+This bot provides the same functionality as the EVVM frontend:
+• 🏷️ Name Service - Manage usernames and identity
+• 💸 Payment Signatures - Single and batch payments
+• 🏦 Staking Signatures - Golden and presale staking
+• 💰 Balance - Check your wallet balance
+• 🚰 Faucet - Get testnet tokens
 
 *Features:*
-✅ Connect your wallet securely
-✅ Create payment signatures
-✅ Create staking signatures
-✅ Support for Ethereum & Arbitrum networks
-✅ Secure signature generation
+✅ EVVM contract integration
+✅ Secure wallet connection
+✅ EIP-712 signature generation
+✅ Support for Ethereum & Arbitrum testnets
+✅ Complete feature parity with frontend
 
 *Security Note:* Your private keys are never stored and are only used for signing operations.
 

@@ -26,15 +26,15 @@ const bot = new TelegramBot(
       interval: 300,
       autoStart: !process.env.WEBHOOK_URL,
       params: {
-        timeout: 10
-      }
+        timeout: 10,
+      },
     },
     request: {
       agentOptions: {
         keepAlive: true,
-        family: 4
-      }
-    }
+        family: 4,
+      },
+    },
   }
 );
 
@@ -42,13 +42,13 @@ const bot = new TelegramBot(
 setupBotHandlers(bot);
 
 // Add error handling for polling
-bot.on('polling_error', (error) => {
-  logger.error('Polling error:', error);
+bot.on("polling_error", (error) => {
+  logger.error("Polling error:", error);
   // Don't exit on polling errors, just log them
 });
 
-bot.on('error', (error) => {
-  logger.error('Bot error:', error);
+bot.on("error", (error) => {
+  logger.error("Bot error:", error);
 });
 
 // Setup webhook if configured

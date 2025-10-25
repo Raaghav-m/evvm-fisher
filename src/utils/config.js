@@ -32,12 +32,8 @@ const getSupportedNetworks = () => {
 
 const getRpcUrl = (network) => {
   const networkMap = {
-    ethereum:
-      process.env.EVM_RPC_URL ||
-      "https://eth-sepolia.g.alchemy.com/v2/bCL-PmfJFUH8F65xv9be4",
-    arbitrum:
-      process.env.ARBITRUM_RPC_URL ||
-      "https://arb-sepolia.g.alchemy.com/v2/bCL-PmfJFUH8F65xv9be4",
+    ethereum: "https://eth-sepolia.g.alchemy.com/v2/bCL-PmfJFUH8F65xv9be4",
+    arbitrum: "https://arb-sepolia.g.alchemy.com/v2/bCL-PmfJFUH8F65xv9be4",
   };
 
   return networkMap[network] || networkMap.ethereum;

@@ -13,13 +13,36 @@ const createMainMenu = () => {
           { text: "⚙️ Settings", callback_data: "settings" },
         ],
         [
-          { text: "💸 Payment Signatures", callback_data: "payment_menu" },
-          { text: "🏦 Staking Signatures", callback_data: "staking_menu" },
+          { text: "🏷️ Name Service", callback_data: "name_service" },
+          { text: "💸 Payment Signature", callback_data: "payment_menu" },
         ],
         [
-          { text: "📊 My Wallet Info", callback_data: "wallet_info" },
-          { text: "❓ Help", callback_data: "help" },
+          { text: "🏦 Staking Signature", callback_data: "staking_menu" },
+          { text: "💰 Balance", callback_data: "balance" },
         ],
+        [{ text: "🚰 Faucet", callback_data: "faucet" }],
+        [{ text: "❓ Help", callback_data: "help" }],
+      ],
+    },
+  };
+};
+
+/**
+ * Create name service menu keyboard
+ */
+const createNameServiceMenu = () => {
+  return {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "📝 Register Username", callback_data: "register_username" },
+          { text: "🔍 Check Username", callback_data: "check_username" },
+        ],
+        [
+          { text: "📋 My Usernames", callback_data: "my_usernames" },
+          { text: "🔄 Update Username", callback_data: "update_username" },
+        ],
+        [{ text: "🔙 Back to Main Menu", callback_data: "main_menu" }],
       ],
     },
   };
@@ -215,6 +238,7 @@ const removeKeyboard = () => {
 
 module.exports = {
   createMainMenu,
+  createNameServiceMenu,
   createPaymentMenu,
   createStakingMenu,
   createNetworkMenu,
